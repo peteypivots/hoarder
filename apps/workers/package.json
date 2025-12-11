@@ -21,6 +21,7 @@
     "dotenv": "^16.4.1",
     "drizzle-orm": "^0.44.2",
     "execa": "9.3.1",
+    "form-data": "^4.0.1",
     "hono": "^4.10.6",
     "http-proxy-agent": "^7.0.2",
     "https-proxy-agent": "^7.0.6",

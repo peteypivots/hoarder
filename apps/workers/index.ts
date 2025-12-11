@@ -19,6 +19,7 @@ import { FeedRefreshingWorker, FeedWorker } from "./workers/feedWorker";
 import { OpenAiWorker } from "./workers/inference/inferenceWorker";
 import { RuleEngineWorker } from "./workers/ruleEngineWorker";
 import { SearchIndexingWorker } from "./workers/searchWorker";
+import { TranscriptionWorker } from "./workers/transcriptionWorker";
 import { VideoWorker } from "./workers/videoWorker";
 import { WebhookWorker } from "./workers/webhookWorker";
 
@@ -30,6 +31,7 @@ const workerBuilders = {
   video: () => VideoWorker.build(),
   feed: () => FeedWorker.build(),
   assetPreprocessing: () => AssetPreprocessingWorker.build(),
+  transcription: () => TranscriptionWorker.build(),
   webhook: () => WebhookWorker.build(),
   ruleEngine: () => RuleEngineWorker.build(),
   backup: () => BackupWorker.build(),

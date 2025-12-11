@@ -249,3 +249,20 @@ export const BackupQueue = QUEUE_CLIENT.createQueue<ZBackupRequest>(
     keepFailedJobs: false,
   },
 );
+
+// Transcription worker
+export const zTranscriptionRequestSchema = z.object({
+  bookmarkId: z.string(),
+  assetId: z.string(),
+  userId: z.string(),
+});
+export type ZTranscriptionRequest = z.infer<typeof zTranscriptionRequestSchema>;
+export const TranscriptionQueue = QUEUE_CLIENT.createQueue<ZTranscriptionRequest>(
+  "transcription_queue",
+  {
+    defaultJobArgs: {
+      numRetries: 3,
+    },
+    keepFailedJobs: false,
+  },
+);

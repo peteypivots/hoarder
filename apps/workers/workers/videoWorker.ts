@@ -10,6 +10,7 @@ import { AssetTypes } from "@karakeep/db/schema";
 import {
   QuotaService,
   StorageQuotaError,
+  TranscriptionQueue,
   VideoWorkerQueue,
   ZVideoRequest,
   zvideoRequestSchema,
@@ -204,6 +205,20 @@ async function runWorker(job: DequeuedJob<ZVideoRequest>) {
     logger.info(
       `[VideoCrawler][${jobId}] Finished downloading video from "${normalizedUrl}" and adding it to the database`,
     );
+
+    // Queue transcription job
+    const transcriptionEnabled = process.env.ENABLE_VIDEO_TRANSCRIPTION === "true";
+    
+    if (transcriptionEnabled) {
+      logger.info(
+        `[VideoCrawler][${jobId}] Queueing transcription for video asset ${videoAssetId}`,
+      );
+      await TranscriptionQueue.enqueue({
+        bookmarkId,
+        assetId: videoAssetId,
+        userId,
+      });
+    }
   } catch (error) {
     if (error instanceof StorageQuotaError) {
       logger.warn(

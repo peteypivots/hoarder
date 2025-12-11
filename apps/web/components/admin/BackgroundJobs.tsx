@@ -23,6 +23,7 @@ import {
   Globe,
   HelpCircle,
   Image,
+  Mic,
   RefreshCw,
   Rss,
   Search,
@@ -511,6 +512,13 @@ export default function BackgroundJobs() {
       icon: Video,
       stats: { queued: serverStats.videoStats.queued },
       description: t("admin.background_jobs.jobs.video.description"),
+      actions: [],
+    },
+    {
+      title: "Video Transcription",
+      icon: Mic,
+      stats: { queued: serverStats.transcriptionStats.queued },
+      description: "Extracts audio from videos and generates transcripts using GPU-accelerated ASR models",
       actions: [],
     },
     {

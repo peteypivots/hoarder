@@ -11,6 +11,7 @@ import {
   LinkCrawlerQueue,
   OpenAIQueue,
   SearchIndexingQueue,
+  TranscriptionQueue,
   triggerSearchReindex,
   VideoWorkerQueue,
   WebhookQueue,
@@ -71,6 +72,9 @@ export const adminAppRouter = router({
         videoStats: z.object({
           queued: z.number(),
         }),
+        transcriptionStats: z.object({
+          queued: z.number(),
+        }),
         webhookStats: z.object({
           queued: z.number(),
         }),
@@ -102,6 +106,9 @@ export const adminAppRouter = router({
 
         // Video
         queuedVideo,
+
+        // Transcription
+        queuedTranscription,
 
         // Webhook
         queuedWebhook,
@@ -153,6 +160,9 @@ export const adminAppRouter = router({
         // Video
         VideoWorkerQueue.stats(),
 
+        // Transcription
+        TranscriptionQueue.stats(),
+
         // Webhook
         WebhookQueue.stats(),
 
@@ -184,6 +194,9 @@ export const adminAppRouter = router({
         },
         videoStats: {
           queued: queuedVideo.pending + queuedVideo.pending_retry,
+        },
+        transcriptionStats: {
+          queued: queuedTranscription.pending + queuedTranscription.pending_retry,
         },
         webhookStats: {
           queued: queuedWebhook.pending + queuedWebhook.pending_retry,

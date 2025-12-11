@@ -35,7 +35,8 @@ COPY ./patches ./patches
 
 ENV NEXT_TELEMETRY_DISABLED 1
 ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
-RUN pnpm install --frozen-lockfile
+# Install without frozen lock to allow form-data for transcription worker
+RUN pnpm install --no-frozen-lockfile
 
 COPY . .
 

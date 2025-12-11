@@ -11,6 +11,7 @@ import {
   OpenAIQueue,
   RuleEngineQueue,
   SearchIndexingQueue,
+  TranscriptionQueue,
   VideoWorkerQueue,
   WebhookQueue,
 } from "@karakeep/shared-server";
@@ -27,6 +28,7 @@ const queuePendingJobsGauge = new Gauge({
       { name: "search_indexing", queue: SearchIndexingQueue },
       { name: "admin_maintenance", queue: AdminMaintenanceQueue },
       { name: "video_worker", queue: VideoWorkerQueue },
+      { name: "transcription", queue: TranscriptionQueue },
       { name: "feed", queue: FeedQueue },
       { name: "asset_preprocessing", queue: AssetPreprocessingQueue },
       { name: "webhook", queue: WebhookQueue },
