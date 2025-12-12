@@ -95,7 +95,8 @@ COPY --chmod=755 ./docker/root/etc/s6-overlay /etc/s6-overlay
 ######################
 # Install runtime deps
 ######################
-RUN apk add --no-cache monolith yt-dlp graphicsmagick ghostscript
+RUN apk add --no-cache monolith graphicsmagick ghostscript python3 py3-pip nodejs ffmpeg \
+    && pip3 install --break-system-packages -U yt-dlp
 
 ######################
 # Prepare the web app
