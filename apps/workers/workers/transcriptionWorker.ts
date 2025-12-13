@@ -85,41 +85,101 @@ async function extractAudio(videoPath: string, jobId: string): Promise<string> {
 }
 
 async function transcribeAudio(wavPath: string, jobId: string): Promise<string> {
-  const transcriberUrl = process.env.TRANSCRIBER_SERVICE_URL || "http://transcriber:8081";
+  // Use file-based polling queue instead of HTTP to avoid timeouts
+  const jobsDir = "/data/transcription_jobs";
+  if (!fs.existsSync(jobsDir)) {
+    await fs.promises.mkdir(jobsDir, { recursive: true });
+  }
   
-  logger.info(`[Transcription][${jobId}] Sending audio to transcriber service at ${transcriberUrl}`);
+  const uniqueId = `${jobId}-${Date.now()}`;
+  const jobWavPath = path.join(jobsDir, `job_${uniqueId}.wav`);
+  const jobJsonPath = path.join(jobsDir, `job_${uniqueId}.json`);
+  const jobDonePath = path.join(jobsDir, `job_${uniqueId}.done`);
+  const jobErrorPath = path.join(jobsDir, `job_${uniqueId}.error`);
+  
+  logger.info(`[Transcription][${jobId}] Using file-based queue: ${uniqueId}`);
+  
+  // 1. Copy audio to shared volume
+  await fs.promises.copyFile(wavPath, jobWavPath);
+  
+  // 2. Create job file to trigger transcriber
+  await fs.promises.writeFile(jobJsonPath, JSON.stringify({
+    id: uniqueId,
+    created: Date.now(),
+    originalJobId: jobId
+  }));
+  
+  logger.info(`[Transcription][${jobId}] Job enqueued, waiting for results...`);
+  
+  // 3. Poll for result (max 2 hours)
+  const startTime = Date.now();
+  const MAX_WAIT = 2 * 60 * 60 * 1000; 
+  
+  try {
+    while (Date.now() - startTime < MAX_WAIT) {
+      await new Promise(resolve => setTimeout(resolve, 2000)); // Poll every 2s
+      
+      // Check for success
+      if (fs.existsSync(jobDonePath)) {
+        const resultData = JSON.parse(await fs.promises.readFile(jobDonePath, 'utf8'));
+        logger.info(`[Transcription][${jobId}] Job completed successfully`);
+        
+        // Cleanup
+        await fs.promises.unlink(jobWavPath).catch(() => {});
+        await fs.promises.unlink(jobJsonPath).catch(() => {});
+        await fs.promises.unlink(jobDonePath).catch(() => {});
 
-  // Read the WAV file as binary buffer
-  const audioBuffer = await fs.promises.readFile(wavPath);
+        return resultData.transcript;
+      }
+      
+      // Check for error
+      if (fs.existsSync(jobErrorPath)) {
+        const errorData = JSON.parse(await fs.promises.readFile(jobErrorPath, 'utf8'));
+        
+        // Cleanup
+        await fs.promises.unlink(jobWavPath).catch(() => {});
+        await fs.promises.unlink(jobJsonPath).catch(() => {});
+        await fs.promises.unlink(jobErrorPath).catch(() => {});
 
-  // Send raw audio data
-  const response = await fetch(`${transcriberUrl}/transcribe`, {
-    method: 'POST',
-    body: audioBuffer,
-    headers: {
-      'Content-Type': 'audio/wav',
-      'Content-Length': audioBuffer.length.toString(),
-    },
-  });
+        throw new Error(errorData.error || "Unknown error from transcriber");
+      }
+    }
+    
+    throw new Error("Transcription timed out after 2 hours");
+    
+  } finally {
+    // Cleanup files
+    const files = [jobWavPath, jobJsonPath, jobDonePath, jobErrorPath, path.join(jobsDir, `job_${uniqueId}.lock`)];
+    for (const file of files) {
+      if (fs.existsSync(file)) {
+        await fs.promises.unlink(file).catch(err => logger.warn(`Failed to cleanup ${file}: ${err}`));
+      }
+    }
+  }
+}
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Transcriber service returned ${response.status}: ${errorText}`);
+function inferModelName(transcript: string): string {
+  // Prefer inferring from the transcript itself, since the workers service may not
+  // share the same env/config as the transcriber container.
+  const t = transcript || "";
+  const looksDiarized = /\bSPEAKER_\d+\b/.test(t) || /\bUnknown:\b/.test(t);
+  if (looksDiarized) {
+    return "Whisper Large-v3 Turbo + Diarization";
   }
 
-  const result = await response.json();
-  
-  if (!result.transcript) {
-    throw new Error("Transcriber service did not return a transcript");
+  if (process.env.USE_WHISPER_FOR_LONG_AUDIO === "true") {
+    return "Whisper Large-v3 (auto-select)";
   }
 
-  logger.info(`[Transcription][${jobId}] Received transcript (${result.transcript.length} chars)`);
-  
-  return result.transcript;
+  if (process.env.USE_PYTHON_TRANSCRIPTION === "true") {
+    return "GLM-ASR-Nano-2512";
+  }
+
+  return "Ollama";
 }
 
 function generateTranscriptHTML(transcript: string): string {
-  const modelName = process.env.USE_PYTHON_TRANSCRIPTION === "true" ? "GLM-ASR-Nano-2512" : "Ollama";
+  const modelName = inferModelName(transcript);
   const timestamp = new Date().toISOString();
 
   return `<!DOCTYPE html>
